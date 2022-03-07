@@ -1,0 +1,65 @@
+hadoop-daemon.sh start namenode
+hadoop-daemon.sh start datanode
+hadoop-daemon.sh start secondarynamenode
+start-all.sh
+
+
+1. To count the number of dirs , files and bytes under the home dir
+        hdfs dfs -count
+
+2. Create a directory in hdfs location
+        hdfs dfs -mkdir dir_name
+
+3.create a multi level directory
+        hdfs dfs -mkdir -p cts/bigdata/spark
+
+4.create a file and load it into the cluster
+        echo "Hello, This is sample data" >>sample.txt
+        hdfs dfs -put sample.txt
+        hdfs dfs -put -f sample.txt
+
+        hdfs dfs -copyFromLocal sample.txt
+5.Remove a file
+        hdfs dfs -rm sample.txt
+        hdfs dfs -rm -r cts   [r -> recursive removal ]
+
+6. Take the file from cluster to local file system
+        hdfs dfs -get sample.txt
+        hdfs dfs -copyToLocal sample.txt
+
+7.We can get the file in a different name and at different location
+        hdfs dfs -get sample.txt  numbers.txt
+        hdfs dfs -get sample.txt /tmp/numbers.txt
+
+8. how to see the first and last 10 lines of a file
+        hdfs dfs -cat file | head
+        hdfs dfs -tail file
+
+9. how to create a empty file
+        hdfs dfs -touchz newfile.txt
+
+10. How to change the file permission
+        hdfs dfs -chmod 644 file_name
+
+11. how to append to the existing file
+        hdfs dfs -appendToFile file1 file2
+
+12. Check the space occupied by a directory
+        hdfs dfs -du -s -h dir_name
+
+13.Cluster balancing utility
+        hadoop balancer
+
+14. how to change the replication for a file
+        hdfs dfs -setrep -w 2 filename
+
+15. Check the replaication count for a file
+        hdfs dfs -stat %r filename
+
+16. Change the owner and group
+        hdfs dfs -chown ownername:groupname filename
+        hdfs dfs -chgrp ownername:groupname filename
+
+17. Filesystem checking utility
+        hadoop fsck - /
+WORM -> Write Once Read Many
