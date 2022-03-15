@@ -1,0 +1,9 @@
+1. Create a RDD by reading the twitter data
+2. Split the record with ':'
+3. Split the record with '@' and take the last value ( hash-tag name)
+4. Convert to pair rdd by keep (tagname,1)
+5. Create DF from the RDD created on step 5
+5. Create temp view
+6. write a query that give you the top 10 hash-tag name
+7. collect the output into a df name and write into a file at hdfs:/user/hduser/leadinghashtag/ in
+parquet format 
