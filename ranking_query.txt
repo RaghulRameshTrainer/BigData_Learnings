@@ -1,0 +1,41 @@
+[hduser@localhost data]$ cat ranking.csv
+id,name,age,sal,city
+1,raghul,38,1000,chennai
+2,ramesh,70,2000,bangalore
+3,malini,35,1000,chennai
+4,shivani,30,1000,bangalore
+5,harsha,30,2000,bangalore
+
+
+spark.sql("""SELECT id, name, age,sal,city, rk
+      FROM ( SELECT id,
+      name,
+      age,
+      sal,
+      city,
+      row_number() OVER ( PARTITION BY city ORDER BY sal DESC) as rk
+      FROM rank_tbl ) tbl
+      """).show(false)
+
+
+
+spark.sql("""SELECT id, name, age,sal,city, rk
+      FROM ( SELECT id,
+      name,
+      age,
+      sal,
+      city,
+      rank() OVER ( PARTITION BY city ORDER BY sal DESC) as rk
+      FROM rank_tbl ) tbl
+      """).show(false)
+
+
+spark.sql("""SELECT id, name, age,sal,city, rk
+      FROM ( SELECT id,
+      name,
+      age,
+      sal,
+      city,
+      dense_rank() OVER ( PARTITION BY city ORDER BY sal DESC) as rk
+      FROM rank_tbl ) tbl
+      """).show(false)
