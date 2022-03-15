@@ -36,6 +36,7 @@ spark.sql("""SELECT id, name, age,sal,city, rk
       age,
       sal,
       city,
-      dense_rank() OVER ( PARTITION BY city ORDER BY sal DESC) as rk
+      dense_rank() OVER (PARTITION BY city ORDER BY sal DESC) as rk
       FROM rank_tbl ) tbl
+     WHERE rk=1
       """).show(false)
