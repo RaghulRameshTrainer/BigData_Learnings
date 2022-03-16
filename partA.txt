@@ -1,0 +1,160 @@
+// 1. Load the file1 (insuranceinfo1.csv) 
+  val insureRDD = sc.textFile("hdfs:/user/bigdata/sparkhack/insuranceinfo1.csv")
+  var cnt = insureRDD.count()
+  println("Total Number of Records - insuranceinfo1.csv :" + cnt)
+  
+// 2. Remove the header line from the RDD contains column names.
+  val header = insureRDD.first()  // extract the header
+  val withoutheaderRDD = insureRDD.filter(row => row != header)  // filter out the header record
+  cnt = withoutheaderRDD.count()
+  println("Total Number of Records after removing header - insuranceinfo1.csv :" + cnt)
+  
+// 3. Remove the Footer/trailer also which contains “footer count is 402”
+  // count the number of records
+  val count = withoutheaderRDD.count()
+  
+  // include index for each record
+  val datawithIndex = withoutheaderRDD.zipWithIndex()
+  
+  // print the number of partitions
+  println("Total Partitions: " + datawithIndex.getNumPartitions)
+  
+  val insuredataRDD = datawithIndex.filter(row => row._2 < count - 1)  // remove footer
+  // insuredataRDD.foreach(println)
+  
+// 4. Display the count and show few rows and check whether header and footer is removed.
+  val reccount = insuredataRDD.count()
+  println(s"Total records without header and footer - insuranceinfo1.csv : $reccount")
+  
+  // show a few rows - first 5 records 
+  println("********* First 5 records - insuranceinfo1.csv ***********")
+  insuredataRDD.take(5).foreach(println)
+  
+  // last 5 records
+  println("********* Last 5 records - insuranceinfo1.csv ***********")
+  insuredataRDD.filter(row => row._2 > count - 7).foreach(println)
+  
+// 5. Remove the blank lines in the rdd, if any 
+  val nonemptylinesRDD = insuredataRDD.map(row => row._1.trim().split(",")).filter(row => row.length != 0)
+  val nonetycount = nonemptylinesRDD.count()
+  println(s"RDD without empty lines  : $nonetycount ")
+  
+  
+// 6. Map and split using ‘,’ delimiter
+  val splitrecordsRDD = insuredataRDD.map(row => row._1.trim().split(",", -1))
+  
+  
+// 7. Filter number of fields are equal to 10 columns only - remove incorrect records
+  val validrecordsRDD = insuredataRDD.map(row => row._1.trim().split(",", -1)).filter(row => row.length == 10)
+  // show a few rows - first 5 records 
+  println("********* First 5 records - insuranceinfo1.csv ***********")
+  validrecordsRDD.take(5).foreach(row => println(row.mkString(", ")))
+  val validreccount = validrecordsRDD.count()
+  println(s"Number of records with all 10 columns  - insuranceinfo1.csv: $validreccount")
+  
+
+// 8. Add case class namely insureclass with the field names used as per the header record in the file and apply to the above data to create schemaed RDD
+   case class insureclass(insureid:Long,insureid2:Long,BusinessDate:String,StateCode:String,SourceName:String,NetworkName:String,NetworkURL:String,custnum:Int,MarketCoverage:String,DentalOnlyPlan:String);
+  
+   val schemaRDD = validrecordsRDD.map(row => insureclass(row(0).toLong, row(1).toLong, row(2), row(3), row(4), row(5), row(6), row(7).toInt, row(8), row(9)))
+  //schemaRDD.foreach(x => println(x.insureid, x.StateCode, x.SourceName, x.custnum))
+  
+
+// 9. Take the count of the RDD created in step 7 and step 1 and print how many rows are removed/rejected in the cleanup process of removing fields does not equals 10.
+  val totalCount = insureRDD.count()
+  val incorrectCount = totalCount - validreccount
+  println(s"Total Input Records File-1: $totalCount, Total Cleansed Records : $validreccount, Number of Records Removed : $incorrectCount ")
+
+
+  // for file => 1
+  // 10. Create another RDD namely rejectdata and store the row that does not equals 10  
+  val rejectdataRDD = insuredataRDD.map(row => row._1.trim().split(",", -1)).filter(row => row.length != 10).map(row => rejectdataclass(row.length, row(0).toLong))
+  rejectdataRDD.foreach(x => println(x.leng, x.insureid))
+  
+  // =================================================================
+  println("======================================")
+  println("File 2 - insuranceinfo2.csv processing")
+  println("======================================")
+  
+  // 1. Load the file2 (insuranceinfo2.csv) from HDFS using textFile API into an RDD insuredata
+  val insureRDD2 = sc.textFile("hdfs://localhost:54310/user/hduser/sparkhack2/insuranceinfo2.csv", 1)
+  cnt = insureRDD2.count()
+  println("Total Number of Records - insuranceinfo2.csv :" + cnt)
+  
+  
+  // 2. Remove the header line from the RDD contains column names.
+  val header2 = insureRDD2.first()  // extract the header
+  val withoutheaderRDD2 = insureRDD2.filter(row => row != header2)  // filter out the header recor
+  cnt = withoutheaderRDD2.count()
+  println("Total Number of Records after removing header - insuranceinfo2.csv :" + cnt)
+  
+  
+  // 3. Remove the Footer/trailer also which contains “footer count is 3333”
+  // count the number of records
+  val count2 = withoutheaderRDD2.count()
+  
+  // include index for each record
+  val datawithIndex2 = withoutheaderRDD2.zipWithIndex()
+  
+  // print the number of partitions
+  println("Total Partitions: " + datawithIndex2.getNumPartitions)
+  
+  val insuredataRDD2 = datawithIndex2.filter(row => row._2 < count2 - 1)
+  // insuredataRDD2.foreach(println)
+  
+  
+  // 4. Display the count and show few rows and check whether header and footer is removed.
+  val reccount2 = insuredataRDD2.count()
+  println(s"Total records without header and footer - - insuranceinfo2.csv : $reccount2")
+  
+  // show a few rows - first 5 records 
+  println("********* First 5 records - insuranceinfo2.csv ***********")
+  insuredataRDD2.take(5).foreach(println)
+  
+  // last 5 records
+  println("********* Last 5 records - insuranceinfo2.csv ***********")
+  insuredataRDD2.filter(row => row._2 > count2 - 7).foreach(println)
+  
+  
+  // 5. Remove the blank lines in the rdd  
+  val nonemptylinesRDD2 = insuredataRDD2.map(row => row._1.trim().split(",")).filter(row => row.length != 0)
+  val nonetycount2 = nonemptylinesRDD2.count()
+  println("********************************************")
+  println(s"RDD without empty lines  - insuranceinfo2.csv : $nonetycount2 ")
+  
+  
+  // 6. Map and split using ‘,’ delimiter
+  val splitrecordsRDD2 = insuredataRDD2.map(row => row._1.trim().split(",", -1))
+  //splitrecordsRDD.collect().foreach(row => println(row.mkString(", ")))
+  
+  
+  // 7. Filter number of fields are equal to 10 columns only - remove incorrect records
+  val validrecordsRDD2 = insuredataRDD2.map(row => row._1.trim().split(",", -1)).filter(row => row.length == 10)
+  // show a few rows - first 5 records 
+  println("********* First 5 records ***********")
+  validrecordsRDD2.take(5).foreach(row => println(row.mkString(", ")))
+  val validreccount2 = validrecordsRDD2.count()
+  println("\n********************************************")
+  println(s"Number of records with all 10 columns  - insuranceinfo2.csv : $validreccount2")
+  
+  val schemavalidRDD2 = validrecordsRDD2.map(row => insureclass(row(0), row(1), row(2), row(3), row(4), row(5), row(6), row(7).toInt, row(8), row(9))).filter(row => !(row.insureid.isEmpty && row.insureid2.isEmpty))
+  println("Valid Records in File-2: " + schemavalidRDD2.count)
+  val validreccount3 = schemavalidRDD2.count
+  
+  val schemainvalidRDD2 = validrecordsRDD2.map(row => insureclass(row(0), row(1), row(2), row(3), row(4), row(5), row(6), row(7).toInt, row(8), row(9))).filter(row => (row.insureid.isEmpty && row.insureid2.isEmpty))
+  println("Invalid Records in File-2: " + schemainvalidRDD2.count) 
+  
+  
+  // 9. Take the count of the RDD created in step 7 and step 1 and print how many rows are removed/rejected in the cleanup process of removing fields does not equals 10.
+  val totalCount2 = insureRDD2.count()
+  val incorrectCount2 = totalCount2 - validreccount3
+  println(s"Total Input Records File -2 : $totalCount2, Total Cleansed Records : $validreccount3, Number of Records Removed : $incorrectCount2 ")
+
+  
+  println("\nPart-A (Step-1) Statistics ")
+  println("=============================")
+  val file1cnt = schemaRDD.count
+  val file2cnt = schemavalidRDD2.count
+  println("Valid Records from File-1 :" + file1cnt)
+  println("Valid Records from File-2 :" + file2cnt)
+  
