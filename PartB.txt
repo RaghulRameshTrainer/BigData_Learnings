@@ -1,0 +1,70 @@
+ // ==============================================================
+  // Data merging, Deduplication, Performance Tuning & Persistance
+  // ==============================================================
+  
+  
+  // 13. Merge the both header and footer removed RDDs derived in steps 8 and 12 into an RDD namely insuredatamerged
+  val insuredatamerged = schemaRDD.union(schemavalidRDD2)
+  
+  val totolrecords = insuredatamerged.count()
+  println("\nTotal comnbined records :" + totolrecords)
+  
+  // 14. Persist the step 13 RDD to memory by serializing
+  val insuredatamergedpersisted = insuredatamerged.persist(StorageLevel.MEMORY_ONLY_SER)
+  
+  
+  // 15. Calculate the count of rdds created in step 8+12 and rdd in step 13, check whether they are matching
+  if (totolrecords == file1cnt + file2cnt)
+  {
+    println("Reacord count is matching!!!")
+  } else {
+    println("Reacord count is not matching!!!")
+  }
+  
+  
+  // 16. Remove duplicates from this merged RDD created in step 13 and print how many duplicate rows are there
+  val uniquemergeddata = insuredatamergedpersisted.distinct()
+  println("\nTotal unique records :" + uniquemergeddata.count)
+  
+  
+  // 17. Increase the number of partitions in the above rdd to 8 and name it as insuredatarepart
+  val insuredatarepart = uniquemergeddata.repartition(8)
+  println("\nTotal partitions : " + insuredatarepart.partitions.size)
+  
+  
+  // 18. Split the above RDD using the businessdate field into rdd_20220316 and rdd_20220317 based on the BusinessDate of 2019-10-01 and 2019-10-02 respectively
+  //insuredatarepart.take(10).foreach(println)
+  val rdd_20220316 = insuredatarepart.filter(row => (row.BusinessDate == "01-10-2019" || row.BusinessDate == "2019-10-01"))
+  val rdd_20220317 = insuredatarepart.filter(row => (row.BusinessDate == "02-10-2019" || row.BusinessDate == "2019-10-02"))
+  println("Total 2019-10-01 records : " + rdd_20220316.count)  
+  println("Total 2019-10-02 records : " + rdd_20220317.count)
+
+  
+  // 19. Store the RDDs created in step 10, 13, 18 into HDFS locations.
+  // rejectdataRDD - 10, insuredatamerged - 13, rdd_20220316/rdd_20220317 - 18
+  // remove the files in hdfs, if they exist already
+  hdfs dfs -rm -f /user/hduser/sparkhack2/insurerejecjeddata
+  hdfs dfs -rm -f /user/hduser/sparkhack2/insuremergeddata
+  hdfs dfs -rm -f /user/hduser/sparkhack2/insurerdd_20220316
+  hdfs dfs -rm -f /user/hduser/sparkhack2/insurerdd_20220317
+  
+ 
+ 
+  rejectdataRDD.saveAsTextFile("hdfs://localhost:54310/user/hduser/sparkhack2/insurerejecjeddata")
+  insuredatamerged.saveAsTextFile("hdfs://localhost:54310/user/hduser/sparkhack2/insuremergeddata")
+  rdd_20220316.saveAsTextFile("hdfs://localhost:54310/user/hduser/sparkhack2/insurerdd_20220316")
+  rdd_20220317.saveAsTextFile("hdfs://localhost:54310/user/hduser/sparkhack2/insurerdd_20220317")
+  
+  
+  // 20. Convert the RDD created in step 17 above into Dataframe namely insuredaterepartdf using toDF function
+  import sqlc.implicits._
+  val insuredatadf = insuredatarepart.toDF()
+  
+  insuredatadf.printSchema()
+  insuredatadf.show(10,false)
+  
+  insuredatadf.createOrReplaceTempView("insuredata")
+  spark.sql("select * from insuredata").show(10, false)
+  
+  }
+}
