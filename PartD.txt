@@ -1,0 +1,178 @@
+   // 28. Save the DF generated in step 27 in JSON into HDFS with overwrite option
+   println("Writing in json format")
+   dfudfapplied1.coalesce(1).
+         write.mode("overwrite").
+         //option("compression","bzip2").
+         json("hdfs://localhost:54310/user/hduser/sparkhack2/json1")
+   
+   dfudfapplied2.coalesce(1).
+         write.mode("overwrite").
+         //option("compression","bzip2").
+         json("hdfs://localhost:54310/user/hduser/sparkhack2/json2")  
+   
+   // 29. Save the DF generated in step 27 into CSV format 
+   println("Writing in CSV format")
+   dfudfapplied1.coalesce(1).
+         write.mode("overwrite").
+         option("header", "true").
+         option("delimiter", "~").
+         csv("hdfs://localhost:54310/user/hduser/sparkhack2/insurecsv1")
+
+   dfudfapplied2.coalesce(1).
+         write.mode("overwrite").
+         option("header", "true").
+         option("delimiter", "~").
+         csv("hdfs://localhost:54310/user/hduser/sparkhack2/insurecsv2")
+         
+   // 30. Save the DF generated in step 27 into hive external table and append the data without overwriting it
+   dfudfapplied1.printSchema()
+   spark.sqlContext.setConf("spark.sql.shuffle.partitions","1");
+   
+   spark.sql("use retail")
+   
+   // Option - 1 
+   dfudfapplied1.coalesce(1).write.mode("append").csv("hdfs://localhost:54310/user/hduser/insurecsv1")
+  
+   spark.sql("""create external table if not exists insurecsv1 (IssuerId integer, IssuerId2 integer, 
+            BusinessDate date, stcd string, srcnm string, NetworkName string, NetworkURL string, custnum string,
+            MarketCoverage string, issueridcomposite string, sysdt date, systs timestamp, NetworkNameCleaned string)
+            row format delimited fields terminated by ',' 
+            location 'hdfs://localhost:54310/user/hduser/insurecsv1'""")
+   
+   spark.sql("select * from insurecsv1").show(10, true)
+   
+   // Option - 2
+   //dfudfapplied1.coalesce(1).write.mode(SaveMode.Append).saveAsTable("insurecsv1")
+   //spark.sql("alter table insurecsv1 set tblproperties('EXTERNAL'='TRUE')")
+   
+   dfudfapplied2.coalesce(1).write.mode("append").csv("hdfs://localhost:54310/user/hduser/insurecsv2")
+  
+   spark.sql("""create external table if not exists insurecsv2 (IssuerId integer, IssuerId2 integer, 
+            BusinessDate date, stcd string, srcnm string, NetworkName string, NetworkURL string, custnum string,
+            MarketCoverage string, issueridcomposite string, sysdt date, systs timestamp, NetworkNameCleaned string)
+            row format delimited fields terminated by ',' 
+            location 'hdfs://localhost:54310/user/hduser/insurecsv2'""")
+   
+   spark.sql("select * from insurecsv2").show(10, true)
+   
+   // ==============================================================
+   // 4. Tale of handling RDDs, DFs and TempViews
+   // ==============================================================
+      
+   println("======================================")
+   println("  File - custs_states.csv processing")
+   println("======================================")
+  
+   // 31. Load the file (cust_states.csv) from HDFS using textFile API into an RDD custstates
+   val custStatesRDD = sc.textFile("hdfs://localhost:54310/user/hduser/sparkhack2/custs_states.csv", 1)
+   var cnt = custStatesRDD.count()
+   println("Total Number of Records - insuranceinfo1.csv :" + cnt)
+      
+      
+   // 32. Split the above data into 2 RDDs, first RDD namely custfilter should be loaded only with
+   //    5 columns data and second RDD namely statesfilter should be only loaded with 2 columns 
+   //    data
+      
+   //custStatesRDD.take(10).foreach(println)
+   val custfilter = custStatesRDD.map(row => row.split(",")).filter(row => row.length == 5)
+   val statesfilter = custStatesRDD.map(row => row.split(",")).filter(row => row.length == 2)
+      
+   println("Total Records for States : " + statesfilter.count)
+   println("Total Records for Customers : " + custfilter.count)
+      
+      
+   // 33. Load the file3 (custs_states.csv) from the HDFS location, using CSV Module in a DF
+   val custstatesdf = spark.read.format("csv").
+                         option("header",false).
+                         load("hdfs://localhost:54310/user/hduser/sparkhack2/custs_states.csv")
+ 
+      
+   custstatesdf.show(10, true)
+      
+
+   // 34. Split the above data into 2 DFs, first DF namely custfilterdf and statesfilterdf
+   val custfilterdf = custstatesdf.where("_c2 is not null and _c3 is not null and _c4 is not null")
+   println("Total Records for Customers DF : " + custfilterdf.count)
+      
+   val statesfilterdf = custstatesdf.where("_c2 is null and _c3 is null and _c4 is null")
+   println("Total Records for States DF : " + statesfilterdf.count)
+      
+      
+   // 35. Register the above step 34 DFs as temporary views as custview and statesview.
+   custfilterdf.createOrReplaceTempView("custview")
+   statesfilterdf.createOrReplaceTempView("statesview")
+      
+   spark.sql("select * from custview").show(10, false)
+   spark.sql("select * from statesview").show(10, false)
+   
+   // 36. Register the DF generated in step 23.d as a tempview namely insureview
+   insuranceinfo2DF.createOrReplaceTempView("insureview")
+   spark.sql("select * from insureview").show(10, false)
+   
+   // 37. Import the package, instantiate the class and Register the method
+   val udfnamefordsl=spark.udf.register("remspecialcharudf",hackobj.remspecialchar _) // Applicable for both DSL, SQL (udfnameforsql)
+   
+   // 38. set the spark.sql.shuffle.partitions to 4
+   spark.sqlContext.setConf("spark.sql.shuffle.partitions","4");
+   
+   // 38. Pass NetworkName to remspecialcharudf and get the new column called cleannetworkname
+   // a, b, c, d
+   val insureviewsql = spark.sql("""select IssuerId,IssuerId2, BusinessDate, stcd, srcnm, NetworkName, 
+                                 NetworkURL, custnum, MarketCoverage, issueridcomposite, sysdt, systs, 
+                                 cast(remspecialcharudf(NetworkName) as string) as cleannetworkname,
+                                 current_date() as curdt, current_timestamp() as curts,
+                                 year(BusinessDate) as yr,
+                                 month(BusinessDate) as mth,
+                                 case when trim(NetworkURL) Like 'http:%' then "http non secured"
+                                      when trim(NetworkURL) Like 'https:%' then "http secured"
+                                      else "no protocol" end as protocol 
+                                 from insureview""")   
+   
+   // 38.e                             
+   val dfjoindata = spark.sql("""select IssuerId,IssuerId2, BusinessDate, stcd, srcnm, NetworkName, 
+                                 NetworkURL, custnum, MarketCoverage, issueridcomposite, sysdt, systs, 
+                                 cast(remspecialcharudf(NetworkName) as string) as cleannetworkname,
+                                 current_date() as curdt, current_timestamp() as curts,
+                                 year(BusinessDate) as yr,
+                                 month(BusinessDate) as mth,
+                                 case when trim(NetworkURL) Like 'http:%' then "http non secured"
+                                      when trim(NetworkURL) Like 'https:%' then "http secured"
+                                      else "no protocol" end as protocol,
+                                 a._c1 statedesc,
+				                         b._c3 as age,
+				                         b._c4 as profession
+                                 from insureview 
+                                 join statesview a
+			                             on trim(insureview.stcd) = trim(a._c0)
+                                 join custview b
+				                           on trim(insureview.custnum) = trim(b._c0)""")
+	 
+	 dfjoindata.show(50, false)
+	 
+	 dfjoindata.createOrReplaceTempView("dfjoinsql")
+	 
+	 
+	 // 39. Store the above selected Dataframe/ in Parquet formats in a HDFS location as a single file
+	 println("Writing parquet data")
+   dfjoindata.coalesce(1).write.mode("overwrite").option("compression","none").parquet("hdfs://localhost:54310/user/hduser/insureviewjoinparquet")
+	 
+   
+	 // 40. Write an SQL query to identify average age, count group by statedesc, protocol
+	 
+	 val dfjoinsqlagg = spark.sql("""select * from (
+	                    select row_number() over(partition by protocol order by count(*) desc) as seq_num, 
+                           avg(age) as avg_age, count(*) as count, statedesc, protocol, profession
+                      from dfjoinsql
+                      group by statedesc, protocol, profession) as tempdata
+	                    where seq_num = 2""")
+	 
+	                    
+	 // 41. Store the DF generated in step 39 into MYSQL table insureaggregated
+	 println("Writing to mysql")
+
+   val prop=new java.util.Properties();
+   prop.put("user", "root")
+   prop.put("password", "root")
+   
+   dfjoinsqlagg.write.mode("overwrite").jdbc("jdbc:mysql://localhost/custdb", "insureaggregated",prop )
+   dfjoinsqlagg.printSchema()

@@ -1,0 +1,145 @@
+ // 21. Create structuretype for all the columns as per the insuranceinfo1.csv with the columns 
+  //     such as IssuerId,IssuerId2,BusinessDate,StateCode,SourceName,NetworkName,NetworkURL,custnum,MarketCoverage,DentalOnlyPlan
+  
+  val schema = StructType(Array(StructField("IssuerId",IntegerType,false),
+                                StructField("IssuerId2",IntegerType,false),
+                                StructField("BusinessDate",DateType,false),
+                                StructField("StateCode",StringType,false),
+                                StructField("SourceName",StringType,false),
+                                StructField("NetworkName",StringType,false),
+                                StructField("NetworkURL",StringType,false),
+                                StructField("custnum",StringType,false),
+                                StructField("MarketCoverage",StringType,false),
+                                StructField("DentalOnlyPlan",StringType,false)
+                                ))
+  
+   // 22. Create dataframes using the csv module with option to escape ‘,’ accessing the insuranceinfo1.csv and insuranceinfo2.csv files and remove the footer from both
+   //     dataframes using header true, dropmalformed options and apply the schema of the structure type created in the step 21.
+   val dfinsuranceinfo1 = spark.read.format("csv").
+                          option("header",true).
+                          option("mode","dropmalformed").
+                          option("escape",",").
+                          option("dateFormat","yyyy-MM-dd").
+                          schema(schema).          
+                          load("hdfs://localhost:54310/user/hduser/sparkhack2/insuranceinfo1.csv")         
+                          
+   // display a few records
+   dfinsuranceinfo1.show(3)  
+   
+   val dfinsuranceinfo2 = spark.read.format("csv").
+                          option("header",true).
+                          option("mode","dropmalformed").
+                          option("escape",",").
+                          option("dateFormat","dd-MM-yyyy").
+                          schema(schema).
+                          load("hdfs://localhost:54310/user/hduser/sparkhack2/insuranceinfo2.csv")         
+                          
+   // display a few records
+   dfinsuranceinfo2.show(3) 
+   
+   
+   // 23. Apply the below DSL functions in the DFs created in step 22
+   // DSL
+   import spark.implicits._;
+   
+   val insuranceinfo1DF=dfinsuranceinfo1.
+                withColumnRenamed("StateCode", "stcd").
+                withColumnRenamed("SourceName", "srcnm").
+                withColumn("issueridcomposite", concat($"IssuerId".cast("String"), lit(" "), $"IssuerId2".cast("String"))).
+                drop("DentalOnlyPlan").
+                withColumn("sysdt", current_date()).
+                withColumn("systs", current_timestamp())
+                
+   insuranceinfo1DF.show(3)
+   
+   val insuranceinfo2DF=dfinsuranceinfo2.
+                withColumnRenamed("StateCode", "stcd").
+                withColumnRenamed("SourceName", "srcnm").
+                withColumn("issueridcomposite", concat($"IssuerId".cast("String"), lit(" "), $"IssuerId2".cast("String"))).
+                drop("DentalOnlyPlan").
+                withColumn("sysdt", current_date()).
+                withColumn("systs", current_timestamp())
+                
+   insuranceinfo2DF.show(3)
+   
+   // Try the below use cases seperately: - insuranceinfo1.csv
+   // use case i: Identify all the column names
+   val insuranceinfo1DFColumns = insuranceinfo1DF.columns.toList
+   println(insuranceinfo1DFColumns)
+   
+   // use case ii: Identify all columns with data type
+   val insuranceinfo1DFColumnsType = insuranceinfo1DF.dtypes.toList
+   println(insuranceinfo1DFColumnsType)
+   
+   // use case iii: Identify all integer columns alone and store in an array variable
+   val int1Variables = insuranceinfo1DFColumnsType.filter(each => each._2 == "IntegerType").map(each => (each._1))
+   println(int1Variables(0), int1Variables(1))
+   
+   // use case iv: Select only the integer columns identified
+   var cols: List[Column] = int1Variables.map(insuranceinfo1DF(_))
+   insuranceinfo1DF.select(cols: _*).show(10)
+   
+   // Try the below use cases seperately: - insuranceinfo1.csv
+   // use case i: Identify all the column names
+   val insuranceinfo2DFColumns = insuranceinfo2DF.columns.toList
+   println(insuranceinfo2DFColumns)
+   
+   // use case ii: Identify all columns with data type
+   val insuranceinfo2DFColumnsType = insuranceinfo2DF.dtypes.toList
+   println(insuranceinfo2DFColumnsType)
+   
+   // use case iii: Identify all integer columns alone and store in an array variable
+   val int2Variables = insuranceinfo2DFColumnsType.filter(each => each._2 == "IntegerType").map(each => (each._1))
+   println(int2Variables(0), int2Variables(1))
+   
+   // use case iv: Select only the integer columns identified
+   cols = int2Variables.map(insuranceinfo2DF(_))
+   insuranceinfo2DF.select(cols: _*).show(10)
+   
+   
+   // 24. Take the DF created in step 23.d and Remove the rows contains null in any one of the field
+   println("Remove the records with null in any of the column - csv1")
+   val columnsnonull1DF=insuranceinfo1DF.na.drop;
+   columnsnonull1DF.show(3)
+   
+   println("Remove the records with null in any of the column - csv2")
+   val columnsnonull2DF=insuranceinfo2DF.na.drop; 
+   columnsnonull2DF.show(3)
+   
+   println("Records with Duplicate - csv1")
+   println(columnsnonull1DF.count)
+   
+ 
+   println("Records with Duplicate - csv2")
+   println(columnsnonull2DF.count)
+   
+   println("Dropping Duplicate records - csv1")
+   val unique1DF = columnsnonull1DF.distinct()
+   println(unique1DF.count)
+   
+   println("Dropping Duplicate records - csv2")
+   val unique2DF = columnsnonull2DF.distinct()
+   println(unique2DF.count)
+   
+   println("\nNumber of rows which contains all columns with same value - csv1 : - " + (columnsnonull1DF.count() - unique1DF.count()))
+   println("\nNumber of rows which contains all columns with same value - csv2 : - " + (columnsnonull2DF.count() - unique2DF.count()))
+   
+   // 25. Create a class "allmethods" and define a method to replace special characters
+   
+   
+   // 26. Applying udf in DSL
+   val hackobj=new org.inceptez.hack.allmethods;
+   println("Applying UDF in DSL")
+   
+   val udfremovespecialchars = udf(hackobj.remspecialchar _) // only applicable for DSL
+   
+   
+   // 27. Call the above udf in the DSL by passing NetworkName column as an argument to get the special characters removed DF.
+   val dfudfapplied1=unique1DF.withColumn("NetworkNameCleaned", udfremovespecialchars('NetworkName))
+   dfudfapplied1.printSchema;
+   dfudfapplied1.show()
+   
+   val dfudfapplied2=unique2DF.withColumn("NetworkNameCleaned", udfremovespecialchars('NetworkName))
+   dfudfapplied2.printSchema;
+   dfudfapplied2.show(100, false)
+   
