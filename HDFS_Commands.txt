@@ -63,3 +63,5 @@ start-all.sh
 17. Filesystem checking utility
         hadoop fsck - /
 WORM -> Write Once Read Many
+
+-- END OF THE FILE---
